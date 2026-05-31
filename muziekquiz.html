@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MUZIEK QUIZ</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --panel: #1a1a26;
+      --accent: #e8ff00;
+      --accent2: #ff3c6e;
+      --accent3: #00e5ff;
+      --text: #f0f0f0;
+      --muted: #555570;
+      --border: #2a2a40;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Noise overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 2rem 2rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 3.2rem);
+      letter-spacing: 0.05em;
+      line-height: 1;
+    }
+
+    .logo span:nth-child(1) {
+      color: var(--accent);
+    }
+
+    .logo span:nth-child(2) {
+      color: var(--text);
+    }
+
+    .logo span:nth-child(3) {
+      color: var(--accent2);
+    }
+
+    .score-bar {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .score-bar strong {
+      display: block;
+      font-size: 1.4rem;
+      color: var(--accent);
+      font-family: 'Black Han Sans', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    .grid {
+      position: relative;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      padding: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+        gap: 1rem;
+      }
+
+      header {
+        padding: 1rem;
+      }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.2s;
+      position: relative;
+    }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .card-number {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: 0.75rem;
+      padding: 2px 7px;
+      border-radius: 2px;
+      z-index: 2;
+      letter-spacing: 0.1em;
+    }
+
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      background: #000;
+      flex-shrink: 0;
+    }
+
+    .video-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .answer-area {
+      padding: 0.9rem 1rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      min-height: 68px;
+    }
+
+    .answer-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .answer-text {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .dot-char {
+      display: inline-block;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .dot-char.revealed {
+      color: var(--accent);
+    }
+
+    .dot-char.space {
+      color: transparent;
+    }
+
+    .revealed-full .dot-char {
+      color: var(--accent2) !important;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 0.4rem;
+      padding: 0.75rem 1rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      flex: 1 1 auto;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.55rem 0.5rem;
+      border: 1px solid;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
+      white-space: nowrap;
+      background: transparent;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-1 {
+      border-color: var(--accent3);
+      color: var(--accent3);
+    }
+
+    .btn-1:hover,
+    .btn-1.active {
+      background: var(--accent3);
+      color: #000;
+    }
+
+    .btn-2 {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-2:hover,
+    .btn-2.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-3 {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .btn-3:hover,
+    .btn-3.active {
+      background: var(--accent2);
+      color: #fff;
+    }
+
+    /* Bottom bar */
+    .bottom-bar {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 1.5rem 2rem 3rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-replay {
+      font-family: 'Black Han Sans', sans-serif;
+      font-size: 1rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0.85rem 3rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 4px 4px 0 var(--accent2);
+    }
+
+    .btn-replay:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 var(--accent2);
+    }
+
+    .btn-replay:active {
+      transform: translate(0, 0);
+      box-shadow: 2px 2px 0 var(--accent2);
+    }
+
+    /* Reveal animation */
+    @keyframes pop {
+      0% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.3);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .pop {
+      animation: pop 0.2s ease;
+    }
+
+    .tape-strip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0 2rem;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+      height: 28px;
+    }
+
+    .tape-strip span {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .tape-line {
+      flex: 1;
+      height: 1px;
+      background: repeating-linear-gradient(90deg, var(--border) 0, var(--border) 6px, transparent 6px, transparent 10px);
+    }
+
+    /* Hint chip */
+    .hint-chip {
+      font-size: 0.58rem;
+      padding: 1px 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-left: 4px;
+    }
+
+    .hint-chip.on {
+      background: var(--accent3);
+      color: #000;
+      border-color: var(--accent3);
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">
+      <span>MU</span><span>ZIEK</span><span>QUIZ</span>
+    </div>
+    <div class="score-bar">
+      <strong id="score">0</strong>
+      antwoorden onthuld
+    </div>
+  </header>
+
+  <div class="tape-strip">
+    <div class="tape-line"></div>
+    <span>▶ Ken jij ze allemaal?</span>
+    <div class="tape-line"></div>
+  </div>
+
+  <div class="grid" id="quiz-grid"></div>
+
+  <div class="bottom-bar">
+    <button class="btn-replay" onclick="loadNewRound()">⟳ &nbsp;Speel Opnieuw</button>
+  </div>
+
+  <script>
+    const ALL_SONGS = [
+      { artist: "Mastodon", song: "Show Yourself", vid: "gUGda7GdZPQ" },
+      { artist: "Accept", song: "Son Of A Bitch", vid: "n1KSF9w9X1o" },
+      { artist: "Maria Iskariot", song: "Dat vind ik lekker", vid: "9_TfomJxUXg" },
+      { artist: "23 Skidoo", song: "FUGI / Coup", vid: "zQADXqHKmEQ" },
+      { artist: "The Mission", song: "Wasteland", vid: "SQhjT0B9ZBU" },
+      { artist: "Bauhaus", song: "The Passion Of Lovers", vid: "R2l9sT9Xn3Q" },
+      { artist: "Frankie Paul", song: "Pass The Tu Sheng Peng", vid: "Zy7Gk3t1f5U" },
+      { artist: "Maxi Priest", song: "Wild World", vid: "S4ZWD_0VRK8" },
+      { artist: "Skyblasters", song: "Centerfold Blues", vid: "W6GDm5_a0X0" },
+      { artist: "Culture", song: "The International Herb", vid: "sCbJrFgFoD8" },
+      { artist: "Horace Andy", song: "Straight To Hell", vid: "n1KSF9w9X1o" },
+    ];
+
+    let revealedCount = 0;
+
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function getFirstLetters(name) {
+      // Returns first letter of first and last word (if multiple words)
+      const words = name.trim().split(/\s+/);
+      if (words.length === 1) return [words[0][0].toUpperCase()];
+      return [words[0][0].toUpperCase(), words[words.length - 1][0].toUpperCase()];
+    }
+
+    function buildDots(str, revealed = new Set(), showFirst = false) {
+      // Returns array of {char, isRevealed, isSpace}
+      return str.split('').map((ch, i) => {
+        const isSpace = ch === ' ';
+        const lower = ch.toLowerCase();
+        const isRev = revealed.has(i) || isSpace;
+        return { char: ch, isSpace, isRevealed: isRev, index: i };
+      });
+    }
+
+    function renderDots(str, revealed, mode) {
+      // mode: 'dots' | 'first' | 'partial' | 'full'
+      let html = '';
+      for (let i = 0; i < str.length; i++) {
+        const ch = str[i];
+        if (ch === ' ') {
+          html += `<span class="dot-char space">&nbsp;&nbsp;</span>`;
+          continue;
+        }
+        if (mode === 'full') {
+          html += `<span class="dot-char revealed">${ch}</span>`;
+        } else if (revealed.has(i)) {
+          html += `<span class="dot-char revealed pop">${ch}</span>`;
+        } else {
+          html += `<span class="dot-char">·</span>`;
+        }
+      }
+      return html;
+    }
+
+    function createCard(entry, index) {
+      const { artist, song, vid } = entry;
+
+      // State per card
+      const state = {
+        revealedArtist: new Set(),
+        revealedSong: new Set(),
+        firstClicked: false,
+        partialClicked: false,
+        fullRevealed: false,
+      };
+
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      card.innerHTML = `
+    <div class="card-number">#${String(index + 1).padStart(2, '0')}</div>
+    <div class="video-wrap">
+      <iframe
+        src="https://www.youtube-nocookie.com/embed/${vid}?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        loading="lazy"
+        title="Video ${index + 1}"
+      ></iframe>
+    </div>
+    <div class="answer-area">
+      <div class="answer-label">Artiest</div>
+      <div class="answer-text" id="artist-${index}">${renderDots(artist, new Set(), 'dots')}</div>
+      <div class="answer-label" style="margin-top:6px">Nummer</div>
+      <div class="answer-text" id="song-${index}">${renderDots(song, new Set(), 'dots')}</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-1" id="btn1-${index}" onclick="handleBtn1(${index})">Eerste letter(s)</button>
+      <button class="btn btn-2" id="btn2-${index}" onclick="handleBtn2(${index})">Vul letters in</button>
+      <button class="btn btn-3" id="btn3-${index}" onclick="handleBtn3(${index})">Toon antwoord</button>
+    </div>
+  `;
+
+      // Store state and entry on element
+      card._state = state;
+      card._entry = entry;
+
+      return card;
+    }
+
+    function getCard(index) {
+      return document.querySelectorAll('.card')[index];
+    }
+
+    function updateDisplay(index) {
+      const card = getCard(index);
+      const { artist, song } = card._entry;
+      const state = card._state;
+
+      const artistEl = document.getElementById(`artist-${index}`);
+      const songEl = document.getElementById(`song-${index}`);
+
+      if (state.fullRevealed) {
+        artistEl.innerHTML = renderDots(artist, null, 'full');
+        artistEl.classList.add('revealed-full');
+        songEl.innerHTML = renderDots(song, null, 'full');
+        songEl.classList.add('revealed-full');
+      } else {
+        artistEl.innerHTML = renderDots(artist, state.revealedArtist, 'partial');
+        songEl.innerHTML = renderDots(song, state.revealedSong, 'partial');
+      }
+    }
+
+    window.handleBtn1 = function (index) {
+      const card = getCard(index);
+      const { artist, song } = card._entry;
+      const state = card._state;
+      if (state.fullRevealed) return;
+
+      // Reveal first letters of artist (first + last word if multi-word)
+      const artistWords = artist.trim().split(/\s+/);
+      revealLetterAt(artist, 0, state.revealedArtist); // first char of artist
+
+      if (artistWords.length > 1) {
+        // find start of last word
+        let pos = artist.lastIndexOf(artistWords[artistWords.length - 1]);
+        revealLetterAt(artist, pos, state.revealedArtist);
+      }
+
+      // Reveal first letter of song
+      revealLetterAt(song, 0, state.revealedSong);
+
+      state.firstClicked = true;
+      document.getElementById(`btn1-${index}`).classList.add('active');
+      updateDisplay(index);
+    };
+
+    window.handleBtn2 = function (index) {
+      const card = getCard(index);
+      const { artist, song } = card._entry;
+      const state = card._state;
+      if (state.fullRevealed) return;
+
+      // Reveal ~40% random letters of artist + song (excluding spaces)
+      revealRandom(artist, state.revealedArtist, 0.4);
+      revealRandom(song, state.revealedSong, 0.4);
+
+      state.partialClicked = true;
+      document.getElementById(`btn2-${index}`).classList.add('active');
+      updateDisplay(index);
+    };
+
+    window.handleBtn3 = function (index) {
+      const card = getCard(index);
+      const state = card._state;
+      if (state.fullRevealed) return;
+
+      state.fullRevealed = true;
+      document.getElementById(`btn1-${index}`).classList.add('active');
+      document.getElementById(`btn2-${index}`).classList.add('active');
+      document.getElementById(`btn3-${index}`).classList.add('active');
+
+      revealedCount++;
+      document.getElementById('score').textContent = revealedCount;
+
+      updateDisplay(index);
+    };
+
+    function revealLetterAt(str, pos, revealed) {
+      // Find first non-space char from pos
+      for (let i = pos; i < str.length; i++) {
+        if (str[i] !== ' ') { revealed.add(i); break; }
+      }
+    }
+
+    function revealRandom(str, revealed, fraction) {
+      const nonSpaceIndices = [];
+      for (let i = 0; i < str.length; i++) {
+        if (str[i] !== ' ' && !revealed.has(i)) nonSpaceIndices.push(i);
+      }
+      const count = Math.max(1, Math.round(nonSpaceIndices.length * fraction));
+      const shuffled = shuffle(nonSpaceIndices);
+      shuffled.slice(0, count).forEach(i => revealed.add(i));
+    }
+
+    function loadNewRound() {
+      revealedCount = 0;
+      document.getElementById('score').textContent = '0';
+
+      const picked = shuffle(ALL_SONGS).slice(0, 3);
+      const grid = document.getElementById('quiz-grid');
+      grid.innerHTML = '';
+      picked.forEach((entry, i) => {
+        grid.appendChild(createCard(entry, i));
+      });
+    }
+
+    // Initial load
+    loadNewRound();
+  </script>
+</body>
+
+</html>
